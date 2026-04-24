@@ -100,6 +100,7 @@ function navigate(id) {
   });
 
   if (PAGE_INIT[id]) PAGE_INIT[id]();
+  refreshIcons();  
 }
 
 /* =========================================================
@@ -798,4 +799,16 @@ document.addEventListener("DOMContentLoaded", () => {
   initStokPage();
   renderProducts();
   initPayment();
+});
+
+/* ============ LUCIDE ICONS HELPER ============ */
+function refreshIcons() {
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
+}
+
+// Init saat pertama kali load
+document.addEventListener('DOMContentLoaded', () => {
+  refreshIcons();
 });

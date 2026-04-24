@@ -25,50 +25,50 @@
   <nav>
     <div class="nav-section">
       <div class="nav-label">Utama</div>
-      <button class="nav-item active" data-page="dashboard"  onclick="navigate('dashboard')">
-        <span class="nav-ico">⊞</span> Dashboard
+      <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+        <i data-lucide="layout-dashboard" class="nav-ico"></i> Dashboard
       </button>
       <button class="nav-item" data-page="produk" onclick="navigate('produk')">
-        <span class="nav-ico">📦</span> Produk
+        <i data-lucide="package" class="nav-ico"></i> Produk
       </button>
       <button class="nav-item" data-page="stok" onclick="navigate('stok')">
-        <span class="nav-ico">🗃️</span> Stok
+        <i data-lucide="boxes" class="nav-ico"></i> Stok
       </button>
       <button class="nav-item" data-page="pembelian" onclick="navigate('pembelian')">
-        <span class="nav-ico">🛍️</span> Pembelian / PO
+        <i data-lucide="clipboard-list" class="nav-ico"></i> Pembelian / PO
       </button>
     </div>
 
     <div class="nav-section">
       <div class="nav-label">Penjualan</div>
       <button class="nav-item" data-page="penjualan" onclick="navigate('penjualan')">
-        <span class="nav-ico">🛒</span> Toko Online
+        <i data-lucide="shopping-cart" class="nav-ico"></i> Toko Online
       </button>
       <button class="nav-item" data-page="payment" onclick="navigate('payment')">
-        <span class="nav-ico">💳</span> Payment Gateway
+        <i data-lucide="credit-card" class="nav-ico"></i> Payment Gateway
       </button>
       <button class="nav-item" data-page="laporan" onclick="navigate('laporan')">
-        <span class="nav-ico">📊</span> Laporan
+        <i data-lucide="bar-chart-3" class="nav-ico"></i> Laporan
       </button>
     </div>
 
     <div class="nav-section">
       <div class="nav-label">Kecerdasan AI</div>
       <button class="nav-item" data-page="expdate" onclick="navigate('expdate')">
-        <span class="nav-ico">⏰</span> Exp Date Alert
+        <i data-lucide="alarm-clock" class="nav-ico"></i> Exp Date Alert
       </button>
       <button class="nav-item" data-page="pnl" onclick="navigate('pnl')">
-        <span class="nav-ico">💹</span> Margin &amp; P&amp;L
+        <i data-lucide="trending-up" class="nav-ico"></i> Margin &amp; P&amp;L
       </button>
       <button class="nav-item" data-page="aiinsight" onclick="navigate('aiinsight')">
-        <span class="nav-ico">✨</span> AI Insight
+        <i data-lucide="sparkles" class="nav-ico"></i> AI Insight
       </button>
     </div>
 
     <div class="nav-section">
       <div class="nav-label">Sistem</div>
       <button class="nav-item" data-page="settings" onclick="navigate('settings')">
-        <span class="nav-ico">⚙️</span> Pengaturan
+        <i data-lucide="settings" class="nav-ico"></i> Pengaturan
       </button>
     </div>
   </nav>
@@ -81,7 +81,6 @@
     </div>
   </div>
 </aside>
-
 
 <!-- ═══════════════════════════════════════════════════════
      MAIN CONTENT
@@ -96,50 +95,74 @@
         <div class="page-sub" id="dash-date">Memuat tanggal...</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-outline btn-sm">📅 17–24 Mei 2024</button>
-        <button class="btn btn-primary btn-sm" onclick="navigate('penjualan')">🛒 Buka Toko</button>
+        <button class="btn-outline">
+  <i data-lucide="calendar" class="btn-ico"></i>
+  17–24 Mei 2024
+</button>
+        <button class="btn-primary">
+  <i data-lucide="store" class="btn-ico"></i>
+  Buka Toko
+</button>
       </div>
     </div>
     <div class="content">
 
       <!-- Stat Cards -->
       <div class="stat-grid">
-        <div class="stat-card">
-          <div class="stat-card-stripe" style="background:var(--blue)"></div>
-          <div class="stat-icon-wrap" style="background:#eff6ff;color:var(--blue)">📦</div>
-          <div class="stat-label">Total Produk</div>
-          <div class="stat-value" style="color:var(--blue)">1.256</div>
-          <div class="stat-trend trend-up">↑ 8 produk baru hari ini</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-stripe" style="background:var(--green)"></div>
-          <div class="stat-icon-wrap" style="background:var(--green-lt);color:var(--green)">✅</div>
-          <div class="stat-label">In Stock</div>
-          <div class="stat-value" style="color:var(--green)">892</div>
-          <div class="stat-trend trend-up">71% dari total produk</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-stripe" style="background:var(--red)"></div>
-          <div class="stat-icon-wrap" style="background:var(--red-lt);color:var(--red)">⚠️</div>
-          <div class="stat-label">Out of Stock</div>
-          <div class="stat-value" style="color:var(--red)">64</div>
-          <div class="stat-trend trend-dn">5% dari total produk</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-stripe" style="background:var(--amber)"></div>
-          <div class="stat-icon-wrap" style="background:var(--amber-lt);color:var(--amber)">⏰</div>
-          <div class="stat-label">Akan Expired ≤30 hr</div>
-          <div class="stat-value" style="color:var(--amber)">38</div>
-          <div class="stat-trend trend-warn">Perlu tindakan segera</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-stripe" style="background:var(--green)"></div>
-          <div class="stat-icon-wrap" style="background:var(--green-lt);color:var(--green)">💰</div>
-          <div class="stat-label">Total Penjualan</div>
-          <div class="stat-value" style="color:var(--green)">45,68 Jt</div>
-          <div class="stat-trend trend-up">↑ 12,5% vs periode lalu</div>
-        </div>
-      </div>
+  <div class="stat-card">
+    <div class="stat-card-stripe" style="background:var(--blue)"></div>
+    <div class="stat-icon-wrap" style="background:#eff6ff;color:var(--blue)">
+      <i data-lucide="package"></i>
+    </div>
+    <div class="stat-label">Total Produk</div>
+    <div class="stat-value" style="color:var(--blue)">1.256</div>
+    <div class="stat-trend trend-up">
+      <i data-lucide="trending-up" class="trend-ico"></i> 8 produk baru hari ini
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card-stripe" style="background:var(--green)"></div>
+    <div class="stat-icon-wrap" style="background:var(--green-lt);color:var(--green)">
+      <i data-lucide="check-circle-2"></i>
+    </div>
+    <div class="stat-label">In Stock</div>
+    <div class="stat-value" style="color:var(--green)">892</div>
+    <div class="stat-trend trend-up">71% dari total produk</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card-stripe" style="background:var(--red)"></div>
+    <div class="stat-icon-wrap" style="background:var(--red-lt);color:var(--red)">
+      <i data-lucide="alert-triangle"></i>
+    </div>
+    <div class="stat-label">Out of Stock</div>
+    <div class="stat-value" style="color:var(--red)">64</div>
+    <div class="stat-trend trend-dn">5% dari total produk</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card-stripe" style="background:var(--amber)"></div>
+    <div class="stat-icon-wrap" style="background:var(--amber-lt);color:var(--amber)">
+      <i data-lucide="alarm-clock"></i>
+    </div>
+    <div class="stat-label">Akan Expired ≤30 hr</div>
+    <div class="stat-value" style="color:var(--amber)">38</div>
+    <div class="stat-trend trend-warn">Perlu tindakan segera</div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card-stripe" style="background:var(--green)"></div>
+    <div class="stat-icon-wrap" style="background:var(--green-lt);color:var(--green)">
+      <i data-lucide="wallet"></i>
+    </div>
+    <div class="stat-label">Total Penjualan</div>
+    <div class="stat-value" style="color:var(--green)">45,68 Jt</div>
+    <div class="stat-trend trend-up">
+      <i data-lucide="trending-up" class="trend-ico"></i> 12,5% vs periode lalu
+    </div>
+  </div>
+</div>
 
       <!-- Row 2: Chart + Expiry + AI -->
       <div class="g-3">
@@ -771,6 +794,8 @@
   <span id="toast-msg"></span>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 <script src="app.js"></script>
 </body>
 </html>
