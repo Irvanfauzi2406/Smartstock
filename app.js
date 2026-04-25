@@ -48,7 +48,7 @@ function getStockStatus(product) {
 
 // Helper: format rupiah
 function formatRp(num) {
-  return 'Rp ' + num.toLocaleString('id-ID');
+  return 'Rp' + num.toLocaleString('id-ID');
 }
 
 /* ============================================
