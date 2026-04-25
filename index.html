@@ -722,21 +722,88 @@
 
   <!-- ══════════ PEMBELIAN ══════════ -->
   <div id="page-pembelian" class="page">
-    <div class="topbar">
-      <div>
-        <div class="page-title">🛍️ Pembelian / Purchase Order</div>
-        <div class="page-sub">Kelola pesanan ke supplier</div>
+  <div class="topbar">
+    <div>
+      <div class="page-title">
+        <i data-lucide="clipboard-list"></i>
+        Pembelian / Purchase Order
       </div>
-      <button class="btn btn-primary btn-sm">+ Buat PO Baru</button>
+      <div class="page-sub">Kelola permintaan stok dari supplier</div>
     </div>
-    <div class="content">
-      <div class="card" style="text-align:center;padding:60px 24px">
-        <div style="font-size:56px;margin-bottom:16px">🚧</div>
-        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:8px">Fitur Dalam Pengembangan</div>
-        <p style="font-size:13px;color:var(--text-muted)">Halaman Purchase Order akan tersedia pada versi berikutnya.</p>
+    <button class="btn-primary" onclick="openCreatePOModal()">
+      <i data-lucide="plus" class="btn-ico"></i>
+      Buat PO Baru
+    </button>
+  </div>
+  
+  <div class="content">
+    <div class="card">
+      <div class="card-header">
+        <h3>Daftar Purchase Order</h3>
       </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>No. PO</th>
+            <th>Tanggal</th>
+            <th>Produk</th>
+            <th>Qty</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="po-tbody"></tbody>
+      </table>
     </div>
   </div>
+</div>
+
+<!-- Modal Create PO -->
+<div id="modal-create-po" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3><i data-lucide="clipboard-list"></i> Buat Purchase Order</h3>
+      <button class="modal-close" onclick="closeModal('modal-create-po')">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Pilih Produk</label>
+        <select id="po-product" class="form-input" onchange="updatePOPreview()">
+          <option value="">-- Pilih Produk --</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>Quantity</label>
+        <input type="number" id="po-qty" min="1" placeholder="0" class="form-input" oninput="updatePOPreview()">
+      </div>
+      
+      <div class="form-group">
+        <label>Supplier</label>
+        <input type="text" id="po-supplier" placeholder="Nama supplier" class="form-input">
+      </div>
+      
+      <div class="form-group">
+        <label>Catatan</label>
+        <textarea id="po-note" placeholder="Catatan tambahan..." class="form-input" rows="2"></textarea>
+      </div>
+      
+      <div id="po-preview" class="preview-box"></div>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeModal('modal-create-po')">Batal</button>
+      <button class="btn-primary" onclick="createPO()">
+        <i data-lucide="check"></i>
+        Buat PO
+      </button>
+    </div>
+  </div>
+</div>
 
 
   <!-- ══════════ SETTINGS ══════════ -->
@@ -797,5 +864,58 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="app.js"></script>
+<!-- Modal Update Stock -->
+<div id="modal-update-stock" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>
+        <i data-lucide="package-plus"></i>
+        Update Stok
+      </h3>
+      <button class="modal-close" onclick="closeModal('modal-update-stock')">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    
+    <div class="modal-body">
+      <div id="update-stock-info" class="product-info-box"></div>
+      
+      <div class="form-group">
+        <label>Jenis Update</label>
+        <div class="btn-group-radio">
+          <button type="button" class="radio-btn active" data-type="add" onclick="selectUpdateType('add')">
+            <i data-lucide="plus-circle"></i> Tambah Stok
+          </button>
+          <button type="button" class="radio-btn" data-type="subtract" onclick="selectUpdateType('subtract')">
+            <i data-lucide="minus-circle"></i> Kurangi Stok
+          </button>
+          <button type="button" class="radio-btn" data-type="set" onclick="selectUpdateType('set')">
+            <i data-lucide="edit-3"></i> Set Stok
+          </button>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Jumlah</label>
+        <input type="number" id="stock-amount" min="0" placeholder="0" class="form-input">
+      </div>
+      
+      <div class="form-group">
+        <label>Keterangan (opsional)</label>
+        <input type="text" id="stock-reason" placeholder="Contoh: Restok dari supplier" class="form-input">
+      </div>
+      
+      <div id="stock-preview" class="preview-box"></div>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn-outline" onclick="closeModal('modal-update-stock')">Batal</button>
+      <button class="btn-primary" onclick="confirmUpdateStock()">
+        <i data-lucide="check"></i>
+        Simpan Perubahan
+      </button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

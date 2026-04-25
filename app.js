@@ -2,6 +2,501 @@
    SmartStock AI — app.js
    ========================================================= */
 
+   /* ============================================
+   CENTRAL DATA STORE (Single Source of Truth)
+   ============================================ */
+let PRODUCTS = [
+  { id: 1, name: "Susu Ultra Milk 1L", category: "Minuman", emoji: "🥛", 
+    stock: 142, minStock: 50, price: 18000, cost: 14000, 
+    exp: "2024-05-28", image: null },
+  { id: 2, name: "Yogurt Strawberry", category: "Dairy", emoji: "🍓", 
+    stock: 38, minStock: 30, price: 12000, cost: 8500, 
+    exp: "2024-06-02", image: null },
+  { id: 3, name: "Daging Sapi 500g", category: "Protein", emoji: "🥩", 
+    stock: 25, minStock: 20, price: 65000, cost: 50000, 
+    exp: "2024-06-05", image: null },
+  { id: 4, name: "Roti Tawar", category: "Bakery", emoji: "🍞", 
+    stock: 60, minStock: 40, price: 15000, cost: 10000, 
+    exp: "2024-06-10", image: null },
+  { id: 5, name: "Ayam Fillet 500g", category: "Protein", emoji: "🍗", 
+    stock: 18, minStock: 25, price: 45000, cost: 35000, 
+    exp: "2024-06-15", image: null },
+  { id: 6, name: "Telur Ayam Negeri", category: "Protein", emoji: "🥚", 
+    stock: 200, minStock: 50, price: 28000, cost: 22000, 
+    exp: "2024-07-01", image: null },
+  { id: 7, name: "Minuman Kaleng 330ml", category: "Minuman", emoji: "🥤", 
+    stock: 0, minStock: 30, price: 8000, cost: 5000, 
+    exp: "2024-12-01", image: null },
+  { id: 8, name: "Keju Slice", category: "Dairy", emoji: "🧀", 
+    stock: 12, minStock: 20, price: 35000, cost: 25000, 
+    exp: "2024-06-20", image: null },
+];
+
+// Purchase Orders store
+let PURCHASE_ORDERS = [];
+let PO_COUNTER = 1;
+
+// Load dari localStorage kalau ada
+function loadData() {
+  const savedProducts = localStorage.getItem('smartstock_products');
+  const savedPO = localStorage.getItem('smartstock_po');
+  if (savedProducts) PRODUCTS = JSON.parse(savedProducts);
+  if (savedPO) {
+    PURCHASE_ORDERS = JSON.parse(savedPO);
+    PO_COUNTER = PURCHASE_ORDERS.length + 1;
+  }
+}
+
+// Save ke localStorage
+function saveData() {
+  localStorage.setItem('smartstock_products', JSON.stringify(PRODUCTS));
+  localStorage.setItem('smartstock_po', JSON.stringify(PURCHASE_ORDERS));
+}
+
+// Helper: dapatkan status stok
+function getStockStatus(product) {
+  if (product.stock === 0) return { label: 'Out of Stock', class: 'status-red' };
+  if (product.stock < product.minStock) return { label: 'Low Stock', class: 'status-amber' };
+  return { label: 'In Stock', class: 'status-green' };
+}
+
+// Helper: format rupiah
+function formatRp(num) {
+  return 'Rp ' + num.toLocaleString('id-ID');
+}
+
+/* ============================================
+   STOCK MANAGEMENT LOGIC
+   ============================================ */
+
+/**
+ * Update stock produk (tambah/kurang/set)
+ * @param {number} productId - ID produk
+ * @param {number} amount - jumlah perubahan
+ * @param {string} type - 'add' | 'subtract' | 'set'
+ * @param {string} reason - alasan perubahan (untuk history)
+ */
+function updateStock(productId, amount, type = 'add', reason = '') {
+  const product = PRODUCTS.find(p => p.id === productId);
+  if (!product) {
+    toast('❌ Produk tidak ditemukan', 'error');
+    return false;
+  }
+
+  const oldStock = product.stock;
+  
+  switch (type) {
+    case 'add':
+      product.stock += parseInt(amount);
+      break;
+    case 'subtract':
+      if (product.stock < amount) {
+        toast(`⚠️ Stok tidak cukup! Tersedia: ${product.stock}`, 'error');
+        return false;
+      }
+      product.stock -= parseInt(amount);
+      break;
+    case 'set':
+      product.stock = parseInt(amount);
+      break;
+  }
+
+  // Simpan ke localStorage
+  saveData();
+
+  // Log perubahan (untuk debug)
+  console.log(`📦 Stock Update: ${product.name}`, {
+    from: oldStock,
+    to: product.stock,
+    change: type,
+    reason: reason
+  });
+
+  // 🔥 KEY: Re-render SEMUA halaman yang menampilkan stok
+  refreshAllStockViews();
+
+  // Toast notifikasi
+  const diff = product.stock - oldStock;
+  const sign = diff > 0 ? '+' : '';
+  toast(`✅ ${product.name}: ${sign}${diff} (stok: ${product.stock})`, 'success');
+
+  return true;
+}
+
+/* ============================================
+   PURCHASE ORDER LOGIC
+   ============================================ */
+
+function renderPO() {
+  const tbody = document.getElementById('po-tbody');
+  if (!tbody) return;
+  
+  if (PURCHASE_ORDERS.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">
+          <i data-lucide="inbox" style="width:48px;height:48px;opacity:0.3"></i>
+          <p style="margin-top:12px">Belum ada Purchase Order</p>
+          <button class="btn-primary" onclick="openCreatePOModal()" style="margin-top:12px">
+            <i data-lucide="plus" class="btn-ico"></i>
+            Buat PO Pertama
+          </button>
+        </td>
+      </tr>
+    `;
+    refreshIcons();
+    return;
+  }
+  
+  tbody.innerHTML = PURCHASE_ORDERS.map(po => {
+    const statusClass = {
+      pending: 'status-amber',
+      approved: 'status-blue',
+      received: 'status-green',
+      cancelled: 'status-red'
+    }[po.status] || 'status-gray';
+    
+    const statusLabel = {
+      pending: 'Pending',
+      approved: 'Approved',
+      received: 'Received',
+      cancelled: 'Cancelled'
+    }[po.status];
+    
+    return `
+      <tr>
+        <td><strong>${po.poNumber}</strong></td>
+        <td>${po.date}</td>
+        <td>${po.productEmoji} ${po.productName}</td>
+        <td>${po.qty}</td>
+        <td>${formatRp(po.total)}</td>
+        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+        <td>
+          ${po.status === 'pending' ? `
+            <button class="btn-primary btn-sm" onclick="approvePO(${po.id})">
+              <i data-lucide="check" class="btn-ico"></i> Approve
+            </button>
+          ` : ''}
+          ${po.status === 'approved' ? `
+            <button class="btn-primary btn-sm" onclick="receivePO(${po.id})">
+              <i data-lucide="package-check" class="btn-ico"></i> Receive
+            </button>
+          ` : ''}
+          ${(po.status === 'pending' || po.status === 'approved') ? `
+            <button class="btn-outline btn-sm" onclick="cancelPO(${po.id})">
+              <i data-lucide="x" class="btn-ico"></i>
+            </button>
+          ` : ''}
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  refreshIcons();
+}
+
+function openCreatePOModal() {
+  // Populate product dropdown
+  const select = document.getElementById('po-product');
+  select.innerHTML = '<option value="">-- Pilih Produk --</option>' +
+    PRODUCTS.map(p => `
+      <option value="${p.id}">${p.emoji} ${p.name} (Stok: ${p.stock})</option>
+    `).join('');
+  
+  // Reset form
+  document.getElementById('po-qty').value = '';
+  document.getElementById('po-supplier').value = '';
+  document.getElementById('po-note').value = '';
+  document.getElementById('po-preview').innerHTML = '';
+  
+  document.getElementById('modal-create-po').style.display = 'flex';
+  refreshIcons();
+}
+
+function updatePOPreview() {
+  const productId = parseInt(document.getElementById('po-product').value);
+  const qty = parseInt(document.getElementById('po-qty').value) || 0;
+  
+  if (!productId || !qty) {
+    document.getElementById('po-preview').innerHTML = '';
+    return;
+  }
+  
+  const product = PRODUCTS.find(p => p.id === productId);
+  const total = product.cost * qty;
+  
+  document.getElementById('po-preview').innerHTML = `
+    <div class="preview-po">
+      <div class="preview-po-row">
+        <span>Produk:</span>
+        <strong>${product.emoji} ${product.name}</strong>
+      </div>
+      <div class="preview-po-row">
+        <span>Harga Beli:</span>
+        <strong>${formatRp(product.cost)}</strong>
+      </div>
+      <div class="preview-po-row">
+        <span>Quantity:</span>
+        <strong>${qty}</strong>
+      </div>
+      <div class="preview-po-row preview-po-total">
+        <span>Total:</span>
+        <strong>${formatRp(total)}</strong>
+      </div>
+      <div class="preview-po-info">
+        <i data-lucide="info"></i>
+        Stok akan bertambah dari <strong>${product.stock}</strong> menjadi <strong>${product.stock + qty}</strong> saat PO di-receive
+      </div>
+    </div>
+  `;
+  refreshIcons();
+}
+
+function createPO() {
+  const productId = parseInt(document.getElementById('po-product').value);
+  const qty = parseInt(document.getElementById('po-qty').value);
+  const supplier = document.getElementById('po-supplier').value.trim();
+  const note = document.getElementById('po-note').value.trim();
+  
+  if (!productId) return toast('⚠️ Pilih produk dulu', 'error');
+  if (!qty || qty <= 0) return toast('⚠️ Masukkan quantity yang valid', 'error');
+  if (!supplier) return toast('⚠️ Isi nama supplier', 'error');
+  
+  const product = PRODUCTS.find(p => p.id === productId);
+  const poNumber = `PO-${String(PO_COUNTER).padStart(4, '0')}`;
+  
+  const newPO = {
+    id: Date.now(),
+    poNumber: poNumber,
+    date: new Date().toLocaleDateString('id-ID'),
+    productId: productId,
+    productName: product.name,
+    productEmoji: product.emoji,
+    qty: qty,
+    cost: product.cost,
+    total: product.cost * qty,
+    supplier: supplier,
+    note: note,
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  };
+  
+  PURCHASE_ORDERS.unshift(newPO);
+  PO_COUNTER++;
+  saveData();
+  
+  closeModal('modal-create-po');
+  renderPO();
+  toast(`✅ PO ${poNumber} berhasil dibuat`, 'success');
+}
+
+function approvePO(poId) {
+  const po = PURCHASE_ORDERS.find(p => p.id === poId);
+  if (!po) return;
+  
+  po.status = 'approved';
+  saveData();
+  renderPO();
+  toast(`✅ ${po.poNumber} di-approve`, 'success');
+}
+
+function receivePO(poId) {
+  const po = PURCHASE_ORDERS.find(p => p.id === poId);
+  if (!po) return;
+  
+  // 🔥 INI INTI: Update stok produk saat PO diterima
+  const success = updateStock(po.productId, po.qty, 'add', `Received ${po.poNumber}`);
+  
+  if (success) {
+    po.status = 'received';
+    po.receivedAt = new Date().toISOString();
+    saveData();
+    renderPO();
+    toast(`✅ ${po.poNumber} diterima. Stok bertambah +${po.qty}`, 'success');
+  }
+}
+
+function cancelPO(poId) {
+  if (!confirm('Yakin ingin membatalkan PO ini?')) return;
+  
+  const po = PURCHASE_ORDERS.find(p => p.id === poId);
+  if (!po) return;
+  
+  po.status = 'cancelled';
+  saveData();
+  renderPO();
+  toast(`❌ ${po.poNumber} dibatalkan`, 'info');
+}
+
+/**
+ * Re-render semua halaman yang menampilkan stok
+ * Dipanggil setiap kali stok berubah
+ */
+function refreshAllStockViews() {
+  const activePage = document.querySelector('.page.active');
+  if (!activePage) return;
+
+  const pageId = activePage.id;
+
+  // Re-render halaman yang sedang aktif
+  switch (pageId) {
+    case 'page-produk':
+      renderProduk();
+      break;
+    case 'page-stok':
+      function renderStok() {
+  const tbody = document.getElementById('stok-tbody');
+  if (!tbody) return;
+  
+  tbody.innerHTML = PRODUCTS.map(p => {
+    const status = getStockStatus(p);
+    return `
+      <tr>
+        <td>
+          <div class="product-cell">
+            <div class="product-emoji">${p.emoji}</div>
+            <span>${p.name}</span>
+          </div>
+        </td>
+        <td>${p.category}</td>
+        <td class="stock-cell ${status.class}">${p.stock}</td>
+        <td>${p.minStock}</td>
+        <td>${p.exp}</td>
+        <td><span class="status-badge ${status.class}">${status.label}</span></td>
+        <td>
+          <button class="btn-primary btn-sm" onclick="openUpdateStockModal(${p.id})">
+            <i data-lucide="refresh-cw" class="btn-ico"></i>
+            Update Stok
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  refreshIcons();
+}
+      break;
+    case 'page-penjualan':
+      renderTokoOnline();
+      break;
+    case 'page-dashboard':
+      renderDashboardStats();
+      break;
+  }
+  
+  // Refresh icon Lucide setelah re-render
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+/**
+ * Reduce stock saat penjualan (untuk payment gateway)
+ */
+function reduceStockFromSale(productId, qty) {
+  return updateStock(productId, qty, 'subtract', 'Penjualan');
+}
+
+/* ============================================
+   UPDATE STOCK MODAL
+   ============================================ */
+let currentUpdateProductId = null;
+let currentUpdateType = 'add';
+
+function openUpdateStockModal(productId) {
+  const product = PRODUCTS.find(p => p.id === productId);
+  if (!product) return;
+  
+  currentUpdateProductId = productId;
+  currentUpdateType = 'add';
+  
+  // Tampilkan info produk
+  const status = getStockStatus(product);
+  document.getElementById('update-stock-info').innerHTML = `
+    <div class="product-info-flex">
+      <div class="product-emoji-big">${product.emoji}</div>
+      <div>
+        <div class="product-info-name">${product.name}</div>
+        <div class="product-info-meta">${product.category} · Stok saat ini: <strong>${product.stock}</strong></div>
+        <span class="status-badge ${status.class}">${status.label}</span>
+      </div>
+    </div>
+  `;
+  
+  // Reset form
+  document.getElementById('stock-amount').value = '';
+  document.getElementById('stock-reason').value = '';
+  document.getElementById('stock-preview').innerHTML = '';
+  
+  // Reset radio buttons
+  document.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-type="add"]').classList.add('active');
+  
+  // Event listener untuk preview real-time
+  document.getElementById('stock-amount').oninput = updateStockPreview;
+  
+  // Tampilkan modal
+  document.getElementById('modal-update-stock').style.display = 'flex';
+  refreshIcons();
+}
+
+function selectUpdateType(type) {
+  currentUpdateType = type;
+  document.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-type="${type}"]`).classList.add('active');
+  updateStockPreview();
+}
+
+function updateStockPreview() {
+  const amount = parseInt(document.getElementById('stock-amount').value) || 0;
+  const product = PRODUCTS.find(p => p.id === currentUpdateProductId);
+  if (!product) return;
+  
+  let newStock;
+  switch (currentUpdateType) {
+    case 'add': newStock = product.stock + amount; break;
+    case 'subtract': newStock = Math.max(0, product.stock - amount); break;
+    case 'set': newStock = amount; break;
+  }
+  
+  const diff = newStock - product.stock;
+  const sign = diff >= 0 ? '+' : '';
+  const color = diff >= 0 ? 'var(--green)' : 'var(--red)';
+  
+  document.getElementById('stock-preview').innerHTML = `
+    <div class="preview-flex">
+      <div>
+        <div class="preview-label">Stok Sekarang</div>
+        <div class="preview-value">${product.stock}</div>
+      </div>
+      <i data-lucide="arrow-right" class="preview-arrow"></i>
+      <div>
+        <div class="preview-label">Stok Baru</div>
+        <div class="preview-value" style="color:${color}">${newStock} <small>(${sign}${diff})</small></div>
+      </div>
+    </div>
+  `;
+  refreshIcons();
+}
+
+function confirmUpdateStock() {
+  const amount = parseInt(document.getElementById('stock-amount').value);
+  const reason = document.getElementById('stock-reason').value;
+  
+  if (!amount || amount <= 0) {
+    toast('⚠️ Masukkan jumlah yang valid', 'error');
+    return;
+  }
+  
+  const success = updateStock(currentUpdateProductId, amount, currentUpdateType, reason);
+  
+  if (success) {
+    closeModal('modal-update-stock');
+  }
+}
+
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
 /* ── DATA ── */
 const PRODUCTS = [
   { id:1, name:"Susu Ultra Milk 1L",    cat:"Minuman", stock:142, min:50,  price:18500,  cost:13000, exp:"2024-05-28", em:"🥛" },
@@ -87,22 +582,28 @@ const PAGE_INIT = {
   settings:  () => {},
 };
 
-function navigate(id) {
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
-
-  const page = document.getElementById("page-" + id);
-  if (page) page.classList.add("active");
-
-  // Match nav button
-  document.querySelectorAll(".nav-item").forEach(b => {
-    if (b.dataset.page === id) b.classList.add("active");
-  });
-
-  if (PAGE_INIT[id]) PAGE_INIT[id]();
-  refreshIcons();  
+function navigate(page) {
+  // Hide semua page
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  // Show yang dipilih
+  const pageEl = document.getElementById(`page-${page}`);
+  if (pageEl) pageEl.classList.add('active');
+  
+  // Update active nav
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  
+  // 🔥 Render content sesuai page
+  switch (page) {
+    case 'produk': renderProduk(); break;
+    case 'stok': renderStok(); break;
+    case 'pembelian': renderPO(); break;
+    case 'penjualan': renderTokoOnline(); break;
+    case 'dashboard': renderDashboardStats(); break;
+  }
+  
+  refreshIcons();
 }
-
 /* =========================================================
    DASHBOARD
    ========================================================= */
@@ -792,13 +1293,10 @@ function initLaporan() {
 /* =========================================================
    BOOT
    ========================================================= */
-document.addEventListener("DOMContentLoaded", () => {
-  initDashboard();
-  initExpDate();
-  initProdukPage();
-  initStokPage();
-  renderProducts();
-  initPayment();
+document.addEventListener('DOMContentLoaded', () => {
+  loadData(); // Load dari localStorage
+  refreshIcons();
+  navigate('dashboard'); // atau page default Anda
 });
 
 /* ============ LUCIDE ICONS HELPER ============ */

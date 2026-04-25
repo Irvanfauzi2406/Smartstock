@@ -804,3 +804,230 @@ tbody tr:hover td { background: #fafaf7; }
   .g-2, .g-3, .g-2-1, .g-1-2, .g-3-c { grid-template-columns: 1fr; }
   .stat-grid, .pnl-stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-box {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  color: #64748b;
+}
+
+.modal-close:hover { background: #f1f5f9; }
+
+.modal-body { padding: 24px; }
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.form-group { margin-bottom: 16px; }
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(22,163,74,0.1);
+}
+
+.btn-group-radio {
+  display: flex;
+  gap: 6px;
+}
+
+.radio-btn {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.radio-btn [data-lucide] { width: 14px; height: 14px; }
+
+.radio-btn.active {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+
+.product-info-box {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.product-info-flex {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.product-emoji-big { font-size: 40px; }
+
+.product-info-name {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.product-info-meta {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.preview-box {
+  background: #f0fdf4;
+  border: 1px dashed var(--green);
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.preview-flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.preview-label {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.preview-value {
+  font-size: 24px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+.preview-arrow {
+  width: 24px;
+  height: 24px;
+  color: var(--green);
+}
+
+.preview-po-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+.preview-po-total {
+  border-top: 1px dashed #cbd5e1;
+  margin-top: 6px;
+  padding-top: 12px;
+  font-size: 16px;
+}
+
+.preview-po-info {
+  margin-top: 12px;
+  padding: 10px;
+  background: #fef3c7;
+  border-radius: 8px;
+  font-size: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.preview-po-info [data-lucide] {
+  width: 14px;
+  height: 14px;
+  color: #d97706;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-green { background: #dcfce7; color: #166534; }
+.status-red { background: #fee2e2; color: #991b1b; }
+.status-amber { background: #fef3c7; color: #92400e; }
+.status-blue { background: #dbeafe; color: #1e40af; }
+.status-gray { background: #f1f5f9; color: #475569; }
