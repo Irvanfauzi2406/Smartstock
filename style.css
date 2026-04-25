@@ -810,11 +810,15 @@ tbody tr:hover td { background: #fafaf7; }
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.5);
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
   padding: 20px;
+}
+
+.modal-overlay.show {
+  display: flex;
 }
 
 .modal-box {
@@ -1031,3 +1035,344 @@ tbody tr:hover td { background: #fafaf7; }
 .status-amber { background: #fef3c7; color: #92400e; }
 .status-blue { background: #dbeafe; color: #1e40af; }
 .status-gray { background: #f1f5f9; color: #475569; }
+
+/* ===== RESPONSIVE FIX ===== */
+
+/* Dashboard Stat Grid */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* Stat Card Icon Wrap */
+.stat-icon-wrap {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.stat-icon-wrap [data-lucide] {
+  width: 22px !important;
+  height: 22px !important;
+  stroke-width: 2 !important;
+}
+
+/* Trend Icon */
+.stat-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.trend-ico {
+  width: 14px !important;
+  height: 14px !important;
+  stroke-width: 2.5 !important;
+}
+
+/* Button Header */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.btn-outline,
+.btn-primary {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.btn-outline {
+  background: #fff;
+  color: #334155;
+  border-color: #e2e8f0;
+}
+
+.btn-primary {
+  background: var(--green, #16a34a);
+  color: #fff;
+  border-color: var(--green, #16a34a);
+}
+
+.btn-ico {
+  width: 16px !important;
+  height: 16px !important;
+  stroke-width: 2.2 !important;
+  flex-shrink: 0;
+}
+
+/* Sidebar Icons */
+.nav-ico {
+  width: 18px !important;
+  height: 18px !important;
+  stroke-width: 2 !important;
+  flex-shrink: 0;
+}
+
+/* MOBILE RESPONSIVE */
+@media (max-width: 1024px) {
+  .stat-grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .topbar > div:last-child {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.status-green { background: #dcfce7; color: #166534; }
+.status-red { background: #fee2e2; color: #991b1b; }
+.status-amber { background: #fef3c7; color: #92400e; }
+.status-blue { background: #dbeafe; color: #1e40af; }
+.status-gray { background: #f1f5f9; color: #475569; }
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.modal-box {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.modal-header h3 [data-lucide] {
+  width: 20px;
+  height: 20px;
+  color: var(--green);
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover { background: #f1f5f9; }
+.modal-close [data-lucide] { width: 18px; height: 18px; }
+
+.modal-body { padding: 22px; }
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.form-group { margin-bottom: 14px; }
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border 0.2s;
+  background: #fff;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(22,163,74,0.1);
+}
+
+.btn-group-radio {
+  display: flex;
+  gap: 6px;
+}
+
+.radio-btn {
+  flex: 1;
+  padding: 9px 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.2s;
+  color: #475569;
+}
+
+.radio-btn [data-lucide] { width: 13px; height: 13px; }
+
+.radio-btn.active {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-green { background: #dcfce7; color: #166534; }
+.status-red { background: #fee2e2; color: #991b1b; }
+.status-amber { background: #fef3c7; color: #92400e; }
+.status-blue { background: #dbeafe; color: #1e40af; }
+.status-gray { background: #f1f5f9; color: #475569; }
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* ============================================
+   MODAL - FINAL FIX WITH HIGH SPECIFICITY
+   ============================================ */
+body .modal-overlay,
+html body .modal-overlay,
+#modal-update-stock,
+#modal-create-po {
+  display: none !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+body .modal-overlay.show,
+html body .modal-overlay.show,
+#modal-update-stock.show,
+#modal-create-po.show {
+  display: flex !important;
+}
+
+/* ===== FIX CHART CANVAS SIZE ===== */
+#page-dashboard canvas {
+  max-height: 240px !important;
+}
+
+#stockDonutChart {
+  max-height: 180px !important;
+}
+
+#trendChart {
+  max-height: 240px !important;
+}
+
+/* Container card tidak boleh expand */
+#page-dashboard .card {
+  min-height: auto;
+}
+
+/* Chart wrapper */
+#page-dashboard .card > div[style*="position: relative"] {
+  max-height: 260px;
+  overflow: hidden;
+}

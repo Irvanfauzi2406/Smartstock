@@ -2,48 +2,34 @@
    SmartStock AI — app.js
    ========================================================= */
 
-   /* ============================================
-   CENTRAL DATA STORE (Single Source of Truth)
-   ============================================ */
-let PRODUCTS = [
-  { id: 1, name: "Susu Ultra Milk 1L", category: "Minuman", emoji: "🥛", 
-    stock: 142, minStock: 50, price: 18000, cost: 14000, 
-    exp: "2024-05-28", image: null },
-  { id: 2, name: "Yogurt Strawberry", category: "Dairy", emoji: "🍓", 
-    stock: 38, minStock: 30, price: 12000, cost: 8500, 
-    exp: "2024-06-02", image: null },
-  { id: 3, name: "Daging Sapi 500g", category: "Protein", emoji: "🥩", 
-    stock: 25, minStock: 20, price: 65000, cost: 50000, 
-    exp: "2024-06-05", image: null },
-  { id: 4, name: "Roti Tawar", category: "Bakery", emoji: "🍞", 
-    stock: 60, minStock: 40, price: 15000, cost: 10000, 
-    exp: "2024-06-10", image: null },
-  { id: 5, name: "Ayam Fillet 500g", category: "Protein", emoji: "🍗", 
-    stock: 18, minStock: 25, price: 45000, cost: 35000, 
-    exp: "2024-06-15", image: null },
-  { id: 6, name: "Telur Ayam Negeri", category: "Protein", emoji: "🥚", 
-    stock: 200, minStock: 50, price: 28000, cost: 22000, 
-    exp: "2024-07-01", image: null },
-  { id: 7, name: "Minuman Kaleng 330ml", category: "Minuman", emoji: "🥤", 
-    stock: 0, minStock: 30, price: 8000, cost: 5000, 
-    exp: "2024-12-01", image: null },
-  { id: 8, name: "Keju Slice", category: "Dairy", emoji: "🧀", 
-    stock: 12, minStock: 20, price: 35000, cost: 25000, 
-    exp: "2024-06-20", image: null },
-];
-
 // Purchase Orders store
 let PURCHASE_ORDERS = [];
 let PO_COUNTER = 1;
 
 // Load dari localStorage kalau ada
 function loadData() {
-  const savedProducts = localStorage.getItem('smartstock_products');
-  const savedPO = localStorage.getItem('smartstock_po');
-  if (savedProducts) PRODUCTS = JSON.parse(savedProducts);
-  if (savedPO) {
-    PURCHASE_ORDERS = JSON.parse(savedPO);
-    PO_COUNTER = PURCHASE_ORDERS.length + 1;
+  try {
+    const savedProducts = localStorage.getItem('smartstock_products');
+    const savedPO = localStorage.getItem('smartstock_po');
+    
+    if (savedProducts) {
+      const parsed = JSON.parse(savedProducts);
+      // Update stock saja, jangan replace seluruh array
+      parsed.forEach(saved => {
+        const product = PRODUCTS.find(p => p.id === saved.id);
+        if (product) {
+          product.stock = saved.stock;
+        }
+      });
+    }
+    
+    if (savedPO) {
+      PURCHASE_ORDERS.length = 0; // clear array tanpa reassign
+      JSON.parse(savedPO).forEach(po => PURCHASE_ORDERS.push(po));
+      PO_COUNTER = PURCHASE_ORDERS.length + 1;
+    }
+  } catch(e) {
+    console.warn('Load data error:', e);
   }
 }
 
@@ -56,7 +42,7 @@ function saveData() {
 // Helper: dapatkan status stok
 function getStockStatus(product) {
   if (product.stock === 0) return { label: 'Out of Stock', class: 'status-red' };
-  if (product.stock < product.minStock) return { label: 'Low Stock', class: 'status-amber' };
+  if (product.stock < product.min) return { label: 'Low Stock', class: 'status-amber' };
   return { label: 'In Stock', class: 'status-green' };
 }
 
@@ -358,9 +344,9 @@ function refreshAllStockViews() {
             <span>${p.name}</span>
           </div>
         </td>
-        <td>${p.category}</td>
+        <td>${p.cat}</td>
         <td class="stock-cell ${status.class}">${p.stock}</td>
-        <td>${p.minStock}</td>
+        <td>${p.min}</td>
         <td>${p.exp}</td>
         <td><span class="status-badge ${status.class}">${status.label}</span></td>
         <td>
@@ -408,34 +394,80 @@ function openUpdateStockModal(productId) {
   currentUpdateProductId = productId;
   currentUpdateType = 'add';
   
-  // Tampilkan info produk
-  const status = getStockStatus(product);
-  document.getElementById('update-stock-info').innerHTML = `
-    <div class="product-info-flex">
-      <div class="product-emoji-big">${product.emoji}</div>
-      <div>
-        <div class="product-info-name">${product.name}</div>
-        <div class="product-info-meta">${product.category} · Stok saat ini: <strong>${product.stock}</strong></div>
-        <span class="status-badge ${status.class}">${status.label}</span>
+  // Info produk (kalau element ada)
+  const infoEl = document.getElementById('update-stock-info');
+  if (infoEl) {
+    const statusClass = product.stock === 0 ? 'status-red' : 
+                       product.stock < product.min ? 'status-amber' : 'status-green';
+    const statusLabel = product.stock === 0 ? 'Out of Stock' : 
+                       product.stock < product.min ? 'Low Stock' : 'In Stock';
+    
+    infoEl.innerHTML = `
+      <div style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:14px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px">${product.name}</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:6px">
+          ${product.cat} · Stok: <strong>${product.stock}</strong>
+        </div>
+        <span class="status-badge ${statusClass}">${statusLabel}</span>
       </div>
-    </div>
-  `;
+    `;
+  }
   
   // Reset form
-  document.getElementById('stock-amount').value = '';
-  document.getElementById('stock-reason').value = '';
-  document.getElementById('stock-preview').innerHTML = '';
+  const amountEl = document.getElementById('stock-amount');
+  const reasonEl = document.getElementById('stock-reason');
+  const previewEl = document.getElementById('stock-preview');
+  if (amountEl) { amountEl.value = ''; amountEl.oninput = updateStockPreview; }
+  if (reasonEl) reasonEl.value = '';
+  if (previewEl) previewEl.innerHTML = '';
   
   // Reset radio buttons
-  document.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('[data-type="add"]').classList.add('active');
+  document.querySelectorAll('#modal-update-stock .radio-btn').forEach(b => b.classList.remove('active'));
+  const addBtn = document.querySelector('#modal-update-stock [data-type="add"]');
+  if (addBtn) addBtn.classList.add('active');
   
-  // Event listener untuk preview real-time
-  document.getElementById('stock-amount').oninput = updateStockPreview;
+  // Show modal (PAKAI CLASS, BUKAN STYLE)
+  const modal = document.getElementById('modal-update-stock');
+  if (modal) {
+    modal.classList.add('show');
+  }
   
-  // Tampilkan modal
-  document.getElementById('modal-update-stock').style.display = 'flex';
-  refreshIcons();
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function openCreatePOModal() {
+  const select = document.getElementById('po-product');
+  if (!select) {
+    alert('Modal belum siap');
+    return;
+  }
+  
+  select.innerHTML = '<option value="">-- Pilih Produk --</option>' +
+    PRODUCTS.map(p => `
+      <option value="${p.id}">${p.name} (Stok: ${p.stock})</option>
+    `).join('');
+  
+  document.getElementById('po-qty').value = '';
+  document.getElementById('po-supplier').value = '';
+  document.getElementById('po-note').value = '';
+  const preview = document.getElementById('po-preview');
+  if (preview) preview.innerHTML = '';
+  
+  // Show modal pakai class
+  const modal = document.getElementById('modal-create-po');
+  if (modal) {
+    modal.classList.add('show');
+  }
+  
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+// Close modal - HAPUS class show
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.classList.remove('show');
+  }
 }
 
 function selectUpdateType(type) {
@@ -585,25 +617,49 @@ const PAGE_INIT = {
 function navigate(page) {
   // Hide semua page
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  
   // Show yang dipilih
   const pageEl = document.getElementById(`page-${page}`);
   if (pageEl) pageEl.classList.add('active');
   
   // Update active nav
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  const navBtn = document.querySelector(`[data-page="${page}"]`);
+  if (navBtn) navBtn.classList.add('active');
   
-  // 🔥 Render content sesuai page
-  switch (page) {
-    case 'produk': renderProduk(); break;
-    case 'stok': renderStok(); break;
-    case 'pembelian': renderPO(); break;
-    case 'penjualan': renderTokoOnline(); break;
-    case 'dashboard': renderDashboardStats(); break;
+  // 🔥 RENDER CONTENT SESUAI PAGE
+  try {
+    switch (page) {
+      case 'produk':
+        if (typeof renderProduk === 'function') renderProduk();
+        break;
+      case 'stok':
+        if (typeof renderStok === 'function') renderStok();
+        break;
+      case 'pembelian':
+        if (typeof renderPO === 'function') renderPO();
+        break;
+      case 'penjualan':
+        if (typeof renderTokoOnline === 'function') renderTokoOnline();
+        break;
+      case 'dashboard':
+        if (typeof renderDashboardStats === 'function') renderDashboardStats();
+        break;
+    }
+  } catch(e) {
+    console.warn('Render error:', e);
   }
   
-  refreshIcons();
+  // Refresh Lucide icons
+  setTimeout(() => {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons();
+    }
+  }, 50);
+  
+  console.log('📍 Navigated to:', page);
 }
+
 /* =========================================================
    DASHBOARD
    ========================================================= */
@@ -1310,3 +1366,1726 @@ function refreshIcons() {
 document.addEventListener('DOMContentLoaded', () => {
   refreshIcons();
 });
+
+/* ============ LUCIDE ICONS AUTO-REFRESH ============ */
+function refreshIcons() {
+  if (typeof lucide !== 'undefined' && lucide.createIcons) {
+    lucide.createIcons();
+  }
+}
+
+// Init saat DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+  refreshIcons();
+});
+
+// Auto-refresh tiap ada perubahan DOM (safety net)
+// Refresh setiap 500ms untuk pastikan icon selalu muncul
+let iconRefreshInterval;
+function startIconRefresh() {
+  if (iconRefreshInterval) clearInterval(iconRefreshInterval);
+  iconRefreshInterval = setInterval(() => {
+    const emptyIcons = document.querySelectorAll('[data-lucide]:not(.lucide)');
+    if (emptyIcons.length > 0) {
+      refreshIcons();
+    }
+  }, 500);
+}
+
+// Start saat load
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startIconRefresh);
+} else {
+  startIconRefresh();
+}
+
+/* ============================================
+   RENDER FUNCTIONS
+   ============================================ */
+
+function renderProduk() {
+  const container = document.getElementById('page-produk');
+  if (!container) return;
+  
+  const tbody = container.querySelector('#produk-tbody');
+  if (!tbody) return;
+  
+  tbody.innerHTML = PRODUCTS.map(p => {
+    // Hitung margin
+    const margin = (p.price && p.cost) ? 
+      Math.round(((p.price - p.cost) / p.price) * 100) : 0;
+    
+    // Status
+    const statusClass = p.stock === 0 ? 'status-red' : 
+                       p.stock < p.min ? 'status-amber' : 'status-green';
+    const statusLabel = p.stock === 0 ? 'Out of Stock' : 
+                       p.stock < p.min ? 'Low Stock' : 'In Stock';
+    
+    // Stok color
+    const stockColor = p.stock === 0 ? 'var(--red)' : 
+                      p.stock < p.min ? 'var(--amber)' : 'var(--green)';
+    
+    // Format tanggal
+    const expDate = p.exp ? new Date(p.exp).toLocaleDateString('id-ID', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    }) : '-';
+    
+    // 10 KOLOM sesuai header
+    return `
+      <tr>
+        <td><strong>${p.name}</strong></td>
+        <td>${p.cat}</td>
+        <td><strong>Rp ${p.price.toLocaleString('id-ID')}</strong></td>
+        <td style="color:#64748b">Rp ${p.cost.toLocaleString('id-ID')}</td>
+        <td><strong style="color:var(--green)">${margin}%</strong></td>
+        <td><strong style="color:${stockColor}">${p.stock}</strong></td>
+        <td style="color:#64748b">${p.min}</td>
+        <td style="color:#64748b;font-size:12px">${expDate}</td>
+        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+        <td>
+          <button class="btn-primary btn-sm" onclick="openUpdateStockModal(${p.id})">
+            <i data-lucide="refresh-cw" class="btn-ico"></i>
+            Update Stok
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function renderTokoOnline() {
+  // Placeholder, tidak error
+  return;
+}
+
+function renderDashboardStats() {
+  // Placeholder, tidak error
+  return;
+}
+
+function openBulkUpdateModal() {
+  // Tampilkan list produk untuk dipilih
+  const firstProduct = PRODUCTS[0];
+  if (firstProduct) {
+    openUpdateStockModal(firstProduct.id);
+  } else {
+    if (typeof toast === 'function') {
+      toast('Belum ada produk', 'error');
+    } else {
+      alert('Belum ada produk');
+    }
+  }
+}
+
+/* ============================================
+   RENDER PRODUK — FIXED VERSION
+   ============================================ */
+function renderProduk() {
+  const tbody = document.getElementById('produk-tbody');
+  if (!tbody) {
+    console.error('❌ #produk-tbody tidak ditemukan');
+    return;
+  }
+  
+  if (!PRODUCTS || PRODUCTS.length === 0) {
+    tbody.innerHTML = `
+      <tr><td colspan="10" style="text-align:center;padding:40px;color:#94a3b8">
+        Belum ada produk
+      </td></tr>
+    `;
+    return;
+  }
+  
+  tbody.innerHTML = PRODUCTS.map(p => {
+    const margin = (p.price && p.cost) ? 
+      Math.round(((p.price - p.cost) / p.price) * 100) : 0;
+    
+    const statusClass = p.stock === 0 ? 'status-red' : 
+                       p.stock < p.min ? 'status-amber' : 'status-green';
+    const statusLabel = p.stock === 0 ? 'Out of Stock' : 
+                       p.stock < p.min ? 'Low Stock' : 'In Stock';
+    const stockColor = p.stock === 0 ? '#dc2626' : 
+                      p.stock < p.min ? '#d97706' : '#16a34a';
+    
+    const expDate = p.exp ? new Date(p.exp).toLocaleDateString('id-ID', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    }) : '-';
+    
+    return `
+      <tr>
+        <td><strong>${p.name}</strong></td>
+        <td><span style="background:#f1f5f9;padding:3px 10px;border-radius:12px;font-size:11px">${p.cat}</span></td>
+        <td><strong>Rp ${p.price.toLocaleString('id-ID')}</strong></td>
+        <td style="color:#64748b">Rp ${p.cost.toLocaleString('id-ID')}</td>
+        <td><strong style="color:#16a34a">${margin}%</strong></td>
+        <td><strong style="color:${stockColor};font-size:15px">${p.stock}</strong></td>
+        <td style="color:#64748b">${p.min}</td>
+        <td style="color:#64748b;font-size:12px">${expDate}</td>
+        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+        <td>
+          <button class="btn-primary btn-sm" onclick="openUpdateStockModal(${p.id})" style="padding:5px 10px;font-size:11px">
+            <i data-lucide="refresh-cw" style="width:12px;height:12px"></i>
+            Update
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  if (typeof refreshIcons === 'function') refreshIcons();
+  console.log('✅ renderProduk: ', PRODUCTS.length, 'produk ditampilkan');
+}
+
+/* ============================================
+   RENDER STOK — FIXED VERSION
+   ============================================ */
+function renderStok() {
+  const tbody = document.getElementById('stok-tbody');
+  if (!tbody) {
+    console.error('❌ #stok-tbody tidak ditemukan');
+    return;
+  }
+  
+  tbody.innerHTML = PRODUCTS.map(p => {
+    const statusClass = p.stock === 0 ? 'status-red' : 
+                       p.stock < p.min ? 'status-amber' : 'status-green';
+    const statusLabel = p.stock === 0 ? 'Out of Stock' : 
+                       p.stock < p.min ? 'Low Stock' : 'In Stock';
+    const stockColor = p.stock === 0 ? '#dc2626' : 
+                      p.stock < p.min ? '#d97706' : '#16a34a';
+    
+    const expDate = p.exp ? new Date(p.exp).toLocaleDateString('id-ID', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    }) : '-';
+    
+    return `
+      <tr>
+        <td><strong>${p.name}</strong></td>
+        <td><span style="background:#f1f5f9;padding:3px 10px;border-radius:12px;font-size:11px">${p.cat}</span></td>
+        <td><strong style="color:${stockColor};font-size:16px">${p.stock}</strong></td>
+        <td style="color:#64748b">${p.min}</td>
+        <td style="color:#64748b;font-size:12px">${expDate}</td>
+        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+        <td>
+          <button class="btn-primary btn-sm" onclick="openUpdateStockModal(${p.id})" style="padding:6px 12px;font-size:12px">
+            <i data-lucide="refresh-cw" style="width:13px;height:13px"></i>
+            Update
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  if (typeof refreshIcons === 'function') refreshIcons();
+  console.log('✅ renderStok: ', PRODUCTS.length, 'produk ditampilkan');
+}
+
+/* ============================================
+   PURCHASE ORDER — COMPLETE VERSION
+   ============================================ */
+
+function renderPO() {
+  const tbody = document.getElementById('po-tbody');
+  if (!tbody) {
+    console.error('❌ #po-tbody tidak ditemukan');
+    return;
+  }
+  
+  // Update counter
+  const pending = PURCHASE_ORDERS.filter(p => p.status === 'pending').length;
+  const approved = PURCHASE_ORDERS.filter(p => p.status === 'approved').length;
+  const received = PURCHASE_ORDERS.filter(p => p.status === 'received').length;
+  
+  const pendEl = document.getElementById('po-pending-count');
+  const apprEl = document.getElementById('po-approved-count');
+  const recvEl = document.getElementById('po-received-count');
+  if (pendEl) pendEl.textContent = pending;
+  if (apprEl) apprEl.textContent = approved;
+  if (recvEl) recvEl.textContent = received;
+  
+  if (PURCHASE_ORDERS.length === 0) {
+    tbody.innerHTML = `
+      <tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8">
+        <i data-lucide="inbox" style="width:40px;height:40px;opacity:0.3;display:block;margin:0 auto 10px"></i>
+        <p>Belum ada Purchase Order</p>
+        <button class="btn-primary" onclick="openCreatePOModal()" style="margin-top:10px">
+          <i data-lucide="plus" class="btn-ico"></i> Buat PO Pertama
+        </button>
+      </td></tr>
+    `;
+    if (typeof refreshIcons === 'function') refreshIcons();
+    return;
+  }
+  
+  tbody.innerHTML = PURCHASE_ORDERS.map(po => {
+    const statusClass = {
+      pending: 'status-amber',
+      approved: 'status-blue',
+      received: 'status-green',
+      cancelled: 'status-red'
+    }[po.status] || 'status-gray';
+    
+    const statusLabel = {
+      pending: 'Pending',
+      approved: 'Approved',
+      received: 'Received',
+      cancelled: 'Cancelled'
+    }[po.status];
+    
+    let actionButtons = '';
+    if (po.status === 'pending') {
+      actionButtons = `
+        <button class="btn-primary btn-sm" onclick="approvePO(${po.id})" style="margin-right:4px">
+          <i data-lucide="check" style="width:12px;height:12px"></i> Approve
+        </button>
+        <button class="btn-outline btn-sm" onclick="cancelPO(${po.id})">
+          <i data-lucide="x" style="width:12px;height:12px"></i>
+        </button>
+      `;
+    } else if (po.status === 'approved') {
+      actionButtons = `
+        <button class="btn-primary btn-sm" onclick="receivePO(${po.id})">
+          <i data-lucide="package-check" style="width:12px;height:12px"></i> Receive
+        </button>
+      `;
+    } else {
+      actionButtons = `<span style="color:#94a3b8;font-size:12px">-</span>`;
+    }
+    
+    return `
+      <tr>
+        <td><strong>${po.poNumber}</strong></td>
+        <td style="font-size:12px;color:#64748b">${po.date}</td>
+        <td>${po.productName}</td>
+        <td><strong>${po.qty}</strong></td>
+        <td><strong>Rp ${po.total.toLocaleString('id-ID')}</strong></td>
+        <td style="font-size:12px">${po.supplier}</td>
+        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+        <td>${actionButtons}</td>
+      </tr>
+    `;
+  }).join('');
+  
+  if (typeof refreshIcons === 'function') refreshIcons();
+  console.log('✅ renderPO:', PURCHASE_ORDERS.length, 'PO ditampilkan');
+}
+
+function openCreatePOModal() {
+  const select = document.getElementById('po-product');
+  if (!select) {
+    alert('Modal belum siap, refresh halaman');
+    return;
+  }
+  
+  select.innerHTML = '<option value="">-- Pilih Produk --</option>' +
+    PRODUCTS.map(p => `
+      <option value="${p.id}">${p.name} (Stok: ${p.stock})</option>
+    `).join('');
+  
+  document.getElementById('po-qty').value = '';
+  document.getElementById('po-supplier').value = '';
+  document.getElementById('po-note').value = '';
+  document.getElementById('po-preview').innerHTML = '';
+  
+  document.getElementById('modal-create-po').style.display = 'flex';
+  if (typeof refreshIcons === 'function') refreshIcons();
+}
+
+function updatePOPreview() {
+  const productId = parseInt(document.getElementById('po-product').value);
+  const qty = parseInt(document.getElementById('po-qty').value) || 0;
+  const preview = document.getElementById('po-preview');
+  
+  if (!productId || !qty) {
+    preview.innerHTML = '';
+    return;
+  }
+  
+  const product = PRODUCTS.find(p => p.id === productId);
+  if (!product) return;
+  
+  const total = product.cost * qty;
+  
+  preview.innerHTML = `
+    <div style="background:#f0fdf4;border:1px dashed #16a34a;border-radius:10px;padding:14px;margin-top:10px">
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
+        <span>Produk:</span><strong>${product.name}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
+        <span>Harga Beli:</span><strong>Rp ${product.cost.toLocaleString('id-ID')}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
+        <span>Quantity:</span><strong>${qty}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0 0;margin-top:6px;border-top:1px dashed #cbd5e1;font-size:15px">
+        <span>Total:</span><strong style="color:#16a34a">Rp ${total.toLocaleString('id-ID')}</strong>
+      </div>
+      <div style="margin-top:10px;padding:8px;background:#fef3c7;border-radius:6px;font-size:12px;color:#92400e">
+        ℹ️ Stok akan bertambah dari <strong>${product.stock}</strong> → <strong>${product.stock + qty}</strong> saat PO di-receive
+      </div>
+    </div>
+  `;
+}
+
+function createPO() {
+  const productId = parseInt(document.getElementById('po-product').value);
+  const qty = parseInt(document.getElementById('po-qty').value);
+  const supplier = document.getElementById('po-supplier').value.trim();
+  const note = document.getElementById('po-note').value.trim();
+  
+  if (!productId) return alert('Pilih produk dulu');
+  if (!qty || qty <= 0) return alert('Masukkan quantity yang valid');
+  if (!supplier) return alert('Isi nama supplier');
+  
+  const product = PRODUCTS.find(p => p.id === productId);
+  const poNumber = `PO-${String(PO_COUNTER).padStart(4, '0')}`;
+  
+  const newPO = {
+    id: Date.now(),
+    poNumber: poNumber,
+    date: new Date().toLocaleDateString('id-ID'),
+    productId: productId,
+    productName: product.name,
+    qty: qty,
+    cost: product.cost,
+    total: product.cost * qty,
+    supplier: supplier,
+    note: note,
+    status: 'pending',
+    createdAt: new Date().toISOString()
+  };
+  
+  PURCHASE_ORDERS.unshift(newPO);
+  PO_COUNTER++;
+  if (typeof saveData === 'function') saveData();
+  
+  closeModal('modal-create-po');
+  renderPO();
+  if (typeof toast === 'function') {
+    toast(`✅ ${poNumber} berhasil dibuat`, 'success');
+  } else {
+    alert(`✅ ${poNumber} berhasil dibuat`);
+  }
+}
+
+function approvePO(poId) {
+  const po = PURCHASE_ORDERS.find(p => p.id === poId);
+  if (!po) return;
+  po.status = 'approved';
+  if (typeof saveData === 'function') saveData();
+  renderPO();
+  if (typeof toast === 'function') toast(`✅ ${po.poNumber} approved`, 'success');
+}
+
+function receivePO(poId) {
+  const po = PURCHASE_ORDERS.find(p => p.id === poId);
+  if (!po) return;
+  
+  const success = updateStock(po.productId, po.qty, 'add', `Received ${po.poNumber}`);
+  
+  if (success) {
+    po.status = 'received';
+    po.receivedAt = new Date().toISOString();
+    if (typeof saveData === 'function') saveData();
+    renderPO();
+  }
+}
+
+function cancelPO(poId) {
+  if (!confirm('Yakin batalkan PO ini?')) return;
+  const po = PURCHASE_ORDERS.find(p => p.id === poId);
+  if (!po) return;
+  po.status = 'cancelled';
+  if (typeof saveData === 'function') saveData();
+  renderPO();
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.style.display = 'none';
+}
+
+function openBulkUpdateModal() {
+  if (PRODUCTS.length > 0) {
+    openUpdateStockModal(PRODUCTS[0].id);
+  }
+}
+
+/* ===== MODAL FIX — FORCE HIDE ALL MODAL ON LOAD ===== */
+(function() {
+  function hideAllModals() {
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+      m.classList.remove('show');
+      m.style.display = 'none';
+    });
+  }
+  
+  // Hide saat load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', hideAllModals);
+  } else {
+    hideAllModals();
+  }
+  
+  // Override function open modal
+  window.openUpdateStockModal = function(productId) {
+    hideAllModals(); // tutup semua dulu
+    
+    const product = PRODUCTS.find(p => p.id === productId);
+    if (!product) return;
+    
+    window.currentUpdateProductId = productId;
+    window.currentUpdateType = 'add';
+    
+    const infoEl = document.getElementById('update-stock-info');
+    if (infoEl) {
+      const statusClass = product.stock === 0 ? 'status-red' : 
+                         product.stock < product.min ? 'status-amber' : 'status-green';
+      const statusLabel = product.stock === 0 ? 'Out of Stock' : 
+                         product.stock < product.min ? 'Low Stock' : 'In Stock';
+      infoEl.innerHTML = `
+        <div style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:14px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">${product.name}</div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:6px">
+            ${product.cat} · Stok: <strong>${product.stock}</strong>
+          </div>
+          <span class="status-badge ${statusClass}">${statusLabel}</span>
+        </div>
+      `;
+    }
+    
+    const amountEl = document.getElementById('stock-amount');
+    const reasonEl = document.getElementById('stock-reason');
+    const previewEl = document.getElementById('stock-preview');
+    if (amountEl) { amountEl.value = ''; amountEl.oninput = updateStockPreview; }
+    if (reasonEl) reasonEl.value = '';
+    if (previewEl) previewEl.innerHTML = '';
+    
+    document.querySelectorAll('#modal-update-stock .radio-btn').forEach(b => b.classList.remove('active'));
+    const addBtn = document.querySelector('#modal-update-stock [data-type="add"]');
+    if (addBtn) addBtn.classList.add('active');
+    
+    const modal = document.getElementById('modal-update-stock');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.classList.add('show');
+    }
+    
+    if (typeof refreshIcons === 'function') refreshIcons();
+  };
+  
+  window.openCreatePOModal = function() {
+    hideAllModals();
+    
+    const select = document.getElementById('po-product');
+    if (!select) return alert('Modal belum siap');
+    
+    select.innerHTML = '<option value="">-- Pilih Produk --</option>' +
+      PRODUCTS.map(p => `<option value="${p.id}">${p.name} (Stok: ${p.stock})</option>`).join('');
+    
+    document.getElementById('po-qty').value = '';
+    document.getElementById('po-supplier').value = '';
+    document.getElementById('po-note').value = '';
+    const preview = document.getElementById('po-preview');
+    if (preview) preview.innerHTML = '';
+    
+    const modal = document.getElementById('modal-create-po');
+    if (modal) {
+      modal.style.display = 'flex';
+      modal.classList.add('show');
+    }
+    
+    if (typeof refreshIcons === 'function') refreshIcons();
+  };
+  
+  window.closeModal = function(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+      modal.style.display = 'none';
+      modal.classList.remove('show');
+    }
+  };
+  
+  // Close kalau click di luar modal-box
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('modal-overlay')) {
+      e.target.style.display = 'none';
+      e.target.classList.remove('show');
+    }
+  });
+  
+  // Close dengan ESC
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') hideAllModals();
+  });
+  
+  console.log('✅ Modal fix loaded');
+})();
+
+/* ============================================
+   FINAL MODAL FIX — FORCE HIDE ON LOAD
+   ============================================ */
+(function finalModalFix() {
+  function killAllModals() {
+    const modals = document.querySelectorAll('.modal-overlay');
+    modals.forEach(m => {
+      m.style.display = 'none';
+      m.classList.remove('show');
+      m.setAttribute('aria-hidden', 'true');
+    });
+  }
+  
+  // Kill saat load
+  killAllModals();
+  
+  // Kill lagi saat DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', killAllModals);
+  }
+  
+  // Kill lagi setelah 100ms (safety net)
+  setTimeout(killAllModals, 100);
+  setTimeout(killAllModals, 500);
+  setTimeout(killAllModals, 1000);
+  
+  // Override open modal
+  window.openUpdateStockModal = function(productId) {
+    killAllModals(); // close semua dulu
+    
+    setTimeout(() => {
+      const product = PRODUCTS.find(p => p.id === productId);
+      if (!product) return;
+      
+      window.currentUpdateProductId = productId;
+      window.currentUpdateType = 'add';
+      
+      const infoEl = document.getElementById('update-stock-info');
+      if (infoEl) {
+        const sc = product.stock === 0 ? 'status-red' : product.stock < product.min ? 'status-amber' : 'status-green';
+        const sl = product.stock === 0 ? 'Out of Stock' : product.stock < product.min ? 'Low Stock' : 'In Stock';
+        infoEl.innerHTML = `
+          <div style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:14px">
+            <div style="font-weight:700;font-size:14px;margin-bottom:4px">${product.name}</div>
+            <div style="font-size:12px;color:#64748b;margin-bottom:6px">${product.cat} · Stok: <strong>${product.stock}</strong></div>
+            <span class="status-badge ${sc}">${sl}</span>
+          </div>
+        `;
+      }
+      
+      const amountEl = document.getElementById('stock-amount');
+      const reasonEl = document.getElementById('stock-reason');
+      const previewEl = document.getElementById('stock-preview');
+      if (amountEl) { amountEl.value = ''; amountEl.oninput = updateStockPreview; }
+      if (reasonEl) reasonEl.value = '';
+      if (previewEl) previewEl.innerHTML = '';
+      
+      document.querySelectorAll('#modal-update-stock .radio-btn').forEach(b => b.classList.remove('active'));
+      const addBtn = document.querySelector('#modal-update-stock [data-type="add"]');
+      if (addBtn) addBtn.classList.add('active');
+      
+      const modal = document.getElementById('modal-update-stock');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+      
+      if (typeof refreshIcons === 'function') refreshIcons();
+    }, 50);
+  };
+  
+  window.openCreatePOModal = function() {
+    killAllModals();
+    
+    setTimeout(() => {
+      const select = document.getElementById('po-product');
+      if (!select) return alert('Modal belum siap');
+      
+      select.innerHTML = '<option value="">-- Pilih Produk --</option>' +
+        PRODUCTS.map(p => `<option value="${p.id}">${p.name} (Stok: ${p.stock})</option>`).join('');
+      
+      const qtyEl = document.getElementById('po-qty');
+      const suppEl = document.getElementById('po-supplier');
+      const noteEl = document.getElementById('po-note');
+      const prevEl = document.getElementById('po-preview');
+      if (qtyEl) qtyEl.value = '';
+      if (suppEl) suppEl.value = '';
+      if (noteEl) noteEl.value = '';
+      if (prevEl) prevEl.innerHTML = '';
+      
+      const modal = document.getElementById('modal-create-po');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+      
+      if (typeof refreshIcons === 'function') refreshIcons();
+    }, 50);
+  };
+  
+  window.closeModal = function(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+      modal.style.display = 'none';
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  };
+  
+  // Click outside to close
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('modal-overlay')) {
+      e.target.style.display = 'none';
+      e.target.classList.remove('show');
+    }
+  });
+  
+  // ESC to close
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') killAllModals();
+  });
+  
+  // Kill modal saat navigate
+  const origNav = window.navigate;
+  if (typeof origNav === 'function') {
+    window.navigate = function(page) {
+      killAllModals();
+      return origNav.apply(this, arguments);
+    };
+  }
+  
+  console.log('✅ Final modal fix loaded');
+})();
+
+/* ============================================
+   CONFIRM UPDATE STOCK — FIX
+   ============================================ */
+
+window.selectUpdateType = function(type) {
+  window.currentUpdateType = type;
+  document.querySelectorAll('#modal-update-stock .radio-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`#modal-update-stock [data-type="${type}"]`);
+  if (btn) btn.classList.add('active');
+  
+  if (typeof updateStockPreview === 'function') updateStockPreview();
+};
+
+window.updateStockPreview = function() {
+  const amount = parseInt(document.getElementById('stock-amount').value) || 0;
+  const productId = window.currentUpdateProductId;
+  const type = window.currentUpdateType || 'add';
+  
+  const product = PRODUCTS.find(p => p.id === productId);
+  if (!product) return;
+  
+  let newStock;
+  switch (type) {
+    case 'add': newStock = product.stock + amount; break;
+    case 'subtract': newStock = Math.max(0, product.stock - amount); break;
+    case 'set': newStock = amount; break;
+    default: newStock = product.stock;
+  }
+  
+  const diff = newStock - product.stock;
+  const sign = diff >= 0 ? '+' : '';
+  const color = diff >= 0 ? '#16a34a' : '#dc2626';
+  
+  const previewEl = document.getElementById('stock-preview');
+  if (previewEl) {
+    previewEl.innerHTML = `
+      <div style="background:#f0fdf4;border:1px dashed #16a34a;border-radius:10px;padding:14px;margin-top:10px">
+        <div style="display:flex;justify-content:space-around;align-items:center">
+          <div style="text-align:center">
+            <div style="font-size:11px;color:#64748b;text-transform:uppercase">Stok Sekarang</div>
+            <div style="font-size:22px;font-weight:800;margin-top:4px">${product.stock}</div>
+          </div>
+          <div style="font-size:20px;color:#16a34a">→</div>
+          <div style="text-align:center">
+            <div style="font-size:11px;color:#64748b;text-transform:uppercase">Stok Baru</div>
+            <div style="font-size:22px;font-weight:800;margin-top:4px;color:${color}">
+              ${newStock} <small style="font-size:13px">(${sign}${diff})</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+};
+
+window.confirmUpdateStock = function() {
+  const amount = parseInt(document.getElementById('stock-amount').value);
+  const reason = document.getElementById('stock-reason').value;
+  const productId = window.currentUpdateProductId;
+  const type = window.currentUpdateType || 'add';
+  
+  console.log('🔍 Debug confirm:', { productId, amount, type, reason });
+  
+  if (!productId) {
+    alert('⚠️ Product ID hilang. Tutup modal dan coba lagi.');
+    return;
+  }
+  
+  if (!amount || amount <= 0) {
+    alert('⚠️ Masukkan jumlah yang valid');
+    return;
+  }
+  
+  const product = PRODUCTS.find(p => p.id === productId);
+  if (!product) {
+    alert('⚠️ Produk tidak ditemukan');
+    console.error('Product ID', productId, 'tidak ada di PRODUCTS:', PRODUCTS);
+    return;
+  }
+  
+  const oldStock = product.stock;
+  
+  switch (type) {
+    case 'add':
+      product.stock += amount;
+      break;
+    case 'subtract':
+      if (product.stock < amount) {
+        alert(`⚠️ Stok tidak cukup! Tersedia: ${product.stock}`);
+        return;
+      }
+      product.stock -= amount;
+      break;
+    case 'set':
+      product.stock = amount;
+      break;
+  }
+  
+  // Save ke localStorage
+  if (typeof saveData === 'function') saveData();
+  
+  // Log
+  console.log(`📦 Stock Update: ${product.name}`, {
+    from: oldStock,
+    to: product.stock,
+    change: type,
+    amount: amount,
+    reason: reason
+  });
+  
+  // Re-render halaman aktif
+  const activePage = document.querySelector('.page.active');
+  if (activePage) {
+    const pageId = activePage.id;
+    if (pageId === 'page-produk' && typeof renderProduk === 'function') renderProduk();
+    if (pageId === 'page-stok' && typeof renderStok === 'function') renderStok();
+    if (pageId === 'page-dashboard' && typeof renderDashboardStats === 'function') renderDashboardStats();
+  }
+  
+  // Close modal
+  closeModal('modal-update-stock');
+  
+  // Toast
+  const diff = product.stock - oldStock;
+  const sign = diff > 0 ? '+' : '';
+  const msg = `✅ ${product.name}: ${sign}${diff} (stok: ${product.stock})`;
+  
+  if (typeof toast === 'function') {
+    toast(msg, 'success');
+  } else {
+    // Fallback toast sederhana
+    showSimpleToast(msg, 'success');
+  }
+};
+
+// Simple toast fallback
+function showSimpleToast(message, type = 'info') {
+  const colors = {
+    success: '#16a34a',
+    error: '#dc2626',
+    info: '#2563eb'
+  };
+  
+  const toastEl = document.createElement('div');
+  toastEl.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: ${colors[type] || colors.info};
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    z-index: 99999;
+    font-weight: 600;
+    font-size: 13px;
+    animation: slideIn 0.3s ease;
+  `;
+  toastEl.textContent = message;
+  document.body.appendChild(toastEl);
+  
+  setTimeout(() => {
+    toastEl.style.opacity = '0';
+    toastEl.style.transition = 'opacity 0.3s';
+    setTimeout(() => toastEl.remove(), 300);
+  }, 3000);
+}
+
+console.log('✅ confirmUpdateStock fix loaded');
+
+
+// Helper: Update stat card by ID
+function updateStatCard(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+// Helper: Update stat card by label (cari label text, lalu update value yang sibling)
+function updateStatByLabel(labelText, value) {
+  const labels = document.querySelectorAll('.stat-label');
+  labels.forEach(label => {
+    if (label.textContent.trim().startsWith(labelText)) {
+      const card = label.closest('.stat-card');
+      if (card) {
+        const valueEl = card.querySelector('.stat-value');
+        if (valueEl) valueEl.textContent = value;
+      }
+    }
+  });
+}
+
+// Format angka jadi Jt (juta) atau Rb (ribu)
+function formatShort(num) {
+  if (num >= 1000000000) return (num / 1000000000).toFixed(2).replace('.', ',') + ' M';
+  if (num >= 1000000) return (num / 1000000).toFixed(2).replace('.', ',') + ' Jt';
+  if (num >= 1000) return (num / 1000).toFixed(1).replace('.', ',') + ' Rb';
+  return num.toString();
+}
+
+/* ============================================
+   CHART: Donut Ringkasan Stok
+   ============================================ */
+let stockDonutChart = null;
+
+function renderStockDonut(inStock, lowStock, outStock) {
+  // Cari canvas donut chart
+  let canvas = document.getElementById('stockDonutChart') || 
+               document.querySelector('#page-dashboard canvas');
+  
+  if (!canvas) {
+    // Kalau canvas tidak ada, cari container chart
+    const container = document.querySelector('#page-dashboard .card');
+    if (!container) return;
+    
+    // Buat canvas baru
+    const chartDiv = Array.from(document.querySelectorAll('#page-dashboard .card')).find(c => 
+      c.textContent.includes('Ringkasan Stok')
+    );
+    
+    if (chartDiv) {
+      const body = chartDiv.querySelector('.card-body') || chartDiv;
+      if (!body.querySelector('canvas')) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'stockDonutChart';
+        canvas.style.maxHeight = '200px';
+        body.appendChild(canvas);
+      } else {
+        canvas = body.querySelector('canvas');
+      }
+    }
+  }
+  
+  if (!canvas || typeof Chart === 'undefined') return;
+  
+  // Destroy chart lama
+  if (stockDonutChart) {
+    stockDonutChart.destroy();
+    stockDonutChart = null;
+  }
+  
+  stockDonutChart = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: ['In Stock', 'Low Stock', 'Out of Stock'],
+      datasets: [{
+        data: [inStock, lowStock, outStock],
+        backgroundColor: ['#16a34a', '#d97706', '#dc2626'],
+        borderWidth: 0,
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+}
+
+/* ============================================
+   CHART: Tren Penjualan vs Modal
+   ============================================ */
+let trendChart = null;
+
+function renderTrendChart() {
+  let canvas = document.getElementById('trendChart');
+  
+  if (!canvas) {
+    const chartDiv = Array.from(document.querySelectorAll('#page-dashboard .card')).find(c => 
+      c.textContent.includes('Tren Penjualan')
+    );
+    
+    if (chartDiv) {
+      const body = chartDiv.querySelector('.card-body') || chartDiv;
+      if (!body.querySelector('canvas')) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'trendChart';
+        canvas.style.maxHeight = '250px';
+        body.appendChild(canvas);
+      } else {
+        canvas = body.querySelector('canvas');
+      }
+    }
+  }
+  
+  if (!canvas || typeof Chart === 'undefined') return;
+  
+  if (trendChart) {
+    trendChart.destroy();
+    trendChart = null;
+  }
+  
+  // Dummy data 7 hari
+  const labels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+  const penjualan = [5200000, 6100000, 4800000, 7200000, 8500000, 9100000, 6800000];
+  const modal = [3500000, 4200000, 3200000, 4900000, 5800000, 6200000, 4600000];
+  
+  trendChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Penjualan',
+          data: penjualan,
+          borderColor: '#16a34a',
+          backgroundColor: 'rgba(22, 163, 74, 0.1)',
+          borderWidth: 2,
+          tension: 0.4,
+          fill: true
+        },
+        {
+          label: 'Modal',
+          data: modal,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          borderWidth: 2,
+          tension: 0.4,
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { 
+          position: 'top',
+          align: 'end',
+          labels: { boxWidth: 12, font: { size: 11 } }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return 'Rp ' + (value / 1000000).toFixed(1) + 'Jt';
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+/* ============================================
+   Akan Expired List
+   ============================================ */
+function renderExpiredList() {
+  // Cari container
+  const container = Array.from(document.querySelectorAll('#page-dashboard .card')).find(c => 
+    c.querySelector('.card-header, h3, .card-title')?.textContent.includes('Akan Expired')
+  );
+  
+  if (!container) return;
+  
+  const body = container.querySelector('.card-body') || container;
+  
+  // Hitung produk yang akan expired dalam 30 hari
+  const today = new Date();
+  const in30Days = new Date();
+  in30Days.setDate(today.getDate() + 30);
+  
+  const expiringProducts = PRODUCTS
+    .filter(p => {
+      if (!p.exp) return false;
+      const expDate = new Date(p.exp);
+      return expDate >= today && expDate <= in30Days;
+    })
+    .sort((a, b) => new Date(a.exp) - new Date(b.exp))
+    .slice(0, 5);
+  
+  // Cari atau buat list container
+  let listEl = body.querySelector('.expired-list');
+  if (!listEl) {
+    listEl = document.createElement('div');
+    listEl.className = 'expired-list';
+    listEl.style.cssText = 'display:flex;flex-direction:column;gap:10px;margin-top:14px';
+    body.appendChild(listEl);
+  }
+  
+  if (expiringProducts.length === 0) {
+    listEl.innerHTML = `
+      <div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px">
+        ✅ Tidak ada produk akan expired dalam 30 hari
+      </div>
+    `;
+    return;
+  }
+  
+  listEl.innerHTML = expiringProducts.map(p => {
+    const expDate = new Date(p.exp);
+    const daysLeft = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+    const urgency = daysLeft <= 7 ? 'red' : daysLeft <= 14 ? 'amber' : 'green';
+    const color = urgency === 'red' ? '#dc2626' : urgency === 'amber' ? '#d97706' : '#16a34a';
+    const bg = urgency === 'red' ? '#fee2e2' : urgency === 'amber' ? '#fef3c7' : '#dcfce7';
+    
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#f8fafc;border-radius:8px;border-left:3px solid ${color}">
+        <div>
+          <div style="font-weight:600;font-size:13px">${p.name}</div>
+          <div style="font-size:11px;color:#64748b">Stok: ${p.stock} · Exp: ${expDate.toLocaleDateString('id-ID', {day:'2-digit',month:'short'})}</div>
+        </div>
+        <span style="padding:3px 10px;border-radius:20px;background:${bg};color:${color};font-size:11px;font-weight:700">
+          ${daysLeft} hari
+        </span>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ============================================
+   DASHBOARD RENDER — OPTIMIZED FIX
+   ============================================ */
+
+// Flag biar chart tidak render berulang
+
+window.renderDashboardStats = function() {
+  // 1. Update Tanggal
+  const dateEl = document.getElementById('dash-date');
+  if (dateEl) {
+    const now = new Date();
+    dateEl.textContent = now.toLocaleDateString('id-ID', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+  }
+  
+  // 2. Hitung Stats
+  const totalProduk = PRODUCTS.length;
+  const inStock = PRODUCTS.filter(p => p.stock >= p.min && p.stock > 0).length;
+  const outStock = PRODUCTS.filter(p => p.stock === 0).length;
+  const lowStock = PRODUCTS.filter(p => p.stock > 0 && p.stock < p.min).length;
+  
+  const today = new Date();
+  const in30Days = new Date();
+  in30Days.setDate(today.getDate() + 30);
+  
+  const willExpire = PRODUCTS.filter(p => {
+    if (!p.exp) return false;
+    const expDate = new Date(p.exp);
+    return expDate >= today && expDate <= in30Days;
+  }).length;
+  
+  const totalPenjualan = PRODUCTS.reduce((sum, p) => sum + (p.price * p.stock), 0);
+  
+  // 3. Update Stat Cards by Label
+  updateStatByLabel('Total Produk', totalProduk.toLocaleString('id-ID'));
+  updateStatByLabel('In Stock', inStock.toLocaleString('id-ID'));
+  updateStatByLabel('Out of Stock', outStock.toLocaleString('id-ID'));
+  updateStatByLabel('Akan Expired', willExpire.toLocaleString('id-ID'));
+  updateStatByLabel('Total Penjualan', formatShort(totalPenjualan));
+  
+  // 4. Render Charts HANYA SEKALI
+  if (!dashboardRendered) {
+    setTimeout(() => {
+      renderStockDonut(inStock, lowStock, outStock);
+      renderTrendChart();
+      dashboardRendered = true;
+    }, 100);
+  } else {
+    // Kalau sudah pernah render, cukup update data
+    updateStockDonut(inStock, lowStock, outStock);
+  }
+  
+  // 5. Render Expired List
+  renderExpiredList();
+  
+  console.log('✅ Dashboard refreshed:', { totalProduk, inStock, outStock, willExpire });
+};
+
+function updateStatByLabel(labelText, value) {
+  const labels = document.querySelectorAll('.stat-label');
+  labels.forEach(label => {
+    if (label.textContent.trim().startsWith(labelText)) {
+      const card = label.closest('.stat-card');
+      if (card) {
+        const valueEl = card.querySelector('.stat-value');
+        if (valueEl) valueEl.textContent = value;
+      }
+    }
+  });
+}
+
+function formatShort(num) {
+  if (num >= 1000000000) return (num / 1000000000).toFixed(2).replace('.', ',') + ' M';
+  if (num >= 1000000) return (num / 1000000).toFixed(2).replace('.', ',') + ' Jt';
+  if (num >= 1000) return (num / 1000).toFixed(1).replace('.', ',') + ' Rb';
+  return num.toString();
+}
+
+/* ============================================
+   DONUT CHART — FIXED SIZE
+   ============================================ */
+function renderStockDonut(inStock, lowStock, outStock) {
+  // Cari card "Ringkasan Stok"
+  const cards = document.querySelectorAll('#page-dashboard .card');
+  let container = null;
+  
+  cards.forEach(card => {
+    if (card.textContent.includes('Ringkasan Stok') && !container) {
+      container = card;
+    }
+  });
+  
+  if (!container) return;
+  
+  // Cari atau buat canvas
+  let canvas = container.querySelector('canvas');
+  
+  if (!canvas) {
+    // Buat wrapper dengan FIXED HEIGHT
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position: relative; height: 180px; width: 100%; margin: 10px 0;';
+    
+    canvas = document.createElement('canvas');
+    canvas.id = 'stockDonutChart';
+    wrapper.appendChild(canvas);
+    
+    // Insert sebelum legend (text "In Stock 892...")
+    const body = container.querySelector('.card-body') || container;
+    const firstLegend = Array.from(body.children).find(el => 
+      el.textContent.includes('In Stock') && el.textContent.includes('%')
+    );
+    
+    if (firstLegend) {
+      body.insertBefore(wrapper, firstLegend);
+    } else {
+      body.appendChild(wrapper);
+    }
+  } else {
+    // Pastikan parent canvas punya fixed height
+    const parent = canvas.parentElement;
+    if (parent && !parent.style.height) {
+      parent.style.cssText = 'position: relative; height: 180px; width: 100%;';
+    }
+  }
+  
+  if (typeof Chart === 'undefined') return;
+  
+  // Destroy chart lama
+  if (stockDonutChart) {
+    stockDonutChart.destroy();
+    stockDonutChart = null;
+  }
+  
+  stockDonutChart = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: ['In Stock', 'Low Stock', 'Out of Stock'],
+      datasets: [{
+        data: [inStock, lowStock, outStock],
+        backgroundColor: ['#16a34a', '#d97706', '#dc2626'],
+        borderWidth: 0,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      animation: {
+        duration: 500 // limit animation
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+              const pct = ((ctx.raw / total) * 100).toFixed(1);
+              return `${ctx.label}: ${ctx.raw} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function updateStockDonut(inStock, lowStock, outStock) {
+  if (stockDonutChart) {
+    stockDonutChart.data.datasets[0].data = [inStock, lowStock, outStock];
+    stockDonutChart.update('none'); // no animation saat update
+  }
+}
+
+/* ============================================
+   TREND CHART — FIXED SIZE
+   ============================================ */
+function renderTrendChart() {
+  const cards = document.querySelectorAll('#page-dashboard .card');
+  let container = null;
+  
+  cards.forEach(card => {
+    if (card.textContent.includes('Tren Penjualan') && !container) {
+      container = card;
+    }
+  });
+  
+  if (!container) return;
+  
+  let canvas = container.querySelector('canvas');
+  
+  if (!canvas) {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position: relative; height: 240px; width: 100%; margin-top: 10px;';
+    
+    canvas = document.createElement('canvas');
+    canvas.id = 'trendChart';
+    wrapper.appendChild(canvas);
+    
+    const body = container.querySelector('.card-body') || container;
+    body.appendChild(wrapper);
+  } else {
+    const parent = canvas.parentElement;
+    if (parent && !parent.style.height) {
+      parent.style.cssText = 'position: relative; height: 240px; width: 100%;';
+    }
+  }
+  
+  if (typeof Chart === 'undefined') return;
+  
+  if (trendChart) {
+    trendChart.destroy();
+    trendChart = null;
+  }
+  
+  const labels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+  const penjualan = [5200000, 6100000, 4800000, 7200000, 8500000, 9100000, 6800000];
+  const modal = [3500000, 4200000, 3200000, 4900000, 5800000, 6200000, 4600000];
+  
+  trendChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Penjualan',
+          data: penjualan,
+          borderColor: '#16a34a',
+          backgroundColor: 'rgba(22, 163, 74, 0.1)',
+          borderWidth: 2,
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: '#16a34a',
+          pointRadius: 3
+        },
+        {
+          label: 'Modal',
+          data: modal,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          borderWidth: 2,
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: '#3b82f6',
+          pointRadius: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 500
+      },
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            font: { size: 10 },
+            callback: function(value) {
+              return 'Rp ' + (value / 1000000).toFixed(1) + 'Jt';
+            }
+          }
+        },
+        x: {
+          ticks: { font: { size: 11 } }
+        }
+      }
+    }
+  });
+}
+
+/* ============================================
+   EXPIRED LIST
+   ============================================ */
+function renderExpiredList() {
+  const cards = document.querySelectorAll('#page-dashboard .card');
+  let container = null;
+  
+  cards.forEach(card => {
+    if (card.textContent.includes('Akan Expired') && !card.textContent.includes('≤30') && !container) {
+      container = card;
+    }
+  });
+  
+  if (!container) return;
+  
+  const body = container.querySelector('.card-body') || container;
+  
+  const today = new Date();
+  const in30Days = new Date();
+  in30Days.setDate(today.getDate() + 30);
+  
+  const expiring = PRODUCTS
+    .filter(p => {
+      if (!p.exp) return false;
+      const expDate = new Date(p.exp);
+      return expDate >= today && expDate <= in30Days;
+    })
+    .sort((a, b) => new Date(a.exp) - new Date(b.exp))
+    .slice(0, 5);
+  
+  let listEl = body.querySelector('.expired-list');
+  if (!listEl) {
+    listEl = document.createElement('div');
+    listEl.className = 'expired-list';
+    listEl.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:14px';
+    body.appendChild(listEl);
+  }
+  
+  if (expiring.length === 0) {
+    listEl.innerHTML = `
+      <div style="text-align:center;padding:30px 15px;color:#94a3b8;font-size:13px">
+        ✅ Tidak ada produk akan expired dalam 30 hari
+      </div>
+    `;
+    return;
+  }
+  
+  listEl.innerHTML = expiring.map(p => {
+    const expDate = new Date(p.exp);
+    const daysLeft = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+    const color = daysLeft <= 7 ? '#dc2626' : daysLeft <= 14 ? '#d97706' : '#16a34a';
+    const bg = daysLeft <= 7 ? '#fee2e2' : daysLeft <= 14 ? '#fef3c7' : '#dcfce7';
+    
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#f8fafc;border-radius:8px;border-left:3px solid ${color}">
+        <div style="min-width:0;flex:1">
+          <div style="font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</div>
+          <div style="font-size:10px;color:#64748b;margin-top:2px">
+            Stok: ${p.stock} · ${expDate.toLocaleDateString('id-ID',{day:'2-digit',month:'short'})}
+          </div>
+        </div>
+        <span style="padding:3px 8px;border-radius:20px;background:${bg};color:${color};font-size:10px;font-weight:700;white-space:nowrap;margin-left:8px">
+          ${daysLeft} hari
+        </span>
+      </div>
+    `;
+  }).join('');
+}
+
+console.log('✅ Dashboard v2 loaded');
+
+/* ============================================
+   AUTO RENDER DASHBOARD ON LOAD
+   ============================================ */
+document.addEventListener('DOMContentLoaded', function() {
+  // Tunggu semua script loaded, baru render dashboard
+  setTimeout(() => {
+    // Cek apakah dashboard yang aktif
+    const dashEl = document.getElementById('page-dashboard');
+    if (dashEl && dashEl.classList.contains('active')) {
+      if (typeof renderDashboardStats === 'function') {
+        renderDashboardStats();
+      }
+    }
+  }, 300);
+});
+
+// Kalau DOMContentLoaded sudah lewat (document already loaded)
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  setTimeout(() => {
+    const dashEl = document.getElementById('page-dashboard');
+    if (dashEl && dashEl.classList.contains('active')) {
+      if (typeof renderDashboardStats === 'function') {
+        renderDashboardStats();
+      }
+    }
+  }, 300);
+}
+
+/* ============================================
+   DASHBOARD — CLEAN VERSION (NO DUPLICATE)
+   ============================================ */
+
+// Gunakan window.xxx untuk menghindari "already declared"
+window._dashboardRendered = false;
+window._stockDonutChart = null;
+window._trendChart = null;
+
+window.renderDashboardStats = function() {
+  // Tanggal
+  const dateEl = document.getElementById('dash-date');
+  if (dateEl) {
+    dateEl.textContent = new Date().toLocaleDateString('id-ID', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+  }
+  
+  // Stats
+  const total = PRODUCTS.length;
+  const inStk = PRODUCTS.filter(p => p.stock >= p.min && p.stock > 0).length;
+  const outStk = PRODUCTS.filter(p => p.stock === 0).length;
+  const lowStk = PRODUCTS.filter(p => p.stock > 0 && p.stock < p.min).length;
+  
+  const today = new Date();
+  const in30 = new Date();
+  in30.setDate(today.getDate() + 30);
+  
+  const expire = PRODUCTS.filter(p => {
+    if (!p.exp) return false;
+    const d = new Date(p.exp);
+    return d >= today && d <= in30;
+  }).length;
+  
+  const totalSales = PRODUCTS.reduce((s, p) => s + (p.price * p.stock), 0);
+  
+  // Update stat cards
+  updateStatByLabel('Total Produk', total.toLocaleString('id-ID'));
+  updateStatByLabel('In Stock', inStk.toLocaleString('id-ID'));
+  updateStatByLabel('Out of Stock', outStk.toLocaleString('id-ID'));
+  updateStatByLabel('Akan Expired', expire.toLocaleString('id-ID'));
+  updateStatByLabel('Total Penjualan', formatShort(totalSales));
+  
+  // Render chart sekali aja
+  if (!window._dashboardRendered) {
+    setTimeout(() => {
+      renderStockDonut(inStk, lowStk, outStk);
+      renderTrendChart();
+      window._dashboardRendered = true;
+    }, 100);
+  } else {
+    // Update data chart yang sudah ada
+    if (window._stockDonutChart) {
+      window._stockDonutChart.data.datasets[0].data = [inStk, lowStk, outStk];
+      window._stockDonutChart.update('none');
+    }
+  }
+  
+  renderExpiredList();
+  console.log('✅ Dashboard:', { total, inStk, outStk, expire });
+};
+
+function updateStatByLabel(labelText, value) {
+  document.querySelectorAll('.stat-label').forEach(label => {
+    if (label.textContent.trim().startsWith(labelText)) {
+      const card = label.closest('.stat-card');
+      if (card) {
+        const valueEl = card.querySelector('.stat-value');
+        if (valueEl) valueEl.textContent = value;
+      }
+    }
+  });
+}
+
+function formatShort(num) {
+  if (num >= 1e9) return (num / 1e9).toFixed(2).replace('.', ',') + ' M';
+  if (num >= 1e6) return (num / 1e6).toFixed(2).replace('.', ',') + ' Jt';
+  if (num >= 1e3) return (num / 1e3).toFixed(1).replace('.', ',') + ' Rb';
+  return String(num);
+}
+
+function renderStockDonut(inStk, lowStk, outStk) {
+  const cards = document.querySelectorAll('#page-dashboard .card');
+  let container = null;
+  cards.forEach(c => {
+    if (c.textContent.includes('Ringkasan Stok') && !container) container = c;
+  });
+  if (!container) return;
+  
+  let canvas = container.querySelector('canvas');
+  if (!canvas) {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;height:180px;width:100%;margin:10px 0';
+    canvas = document.createElement('canvas');
+    canvas.id = 'stockDonutChart';
+    wrap.appendChild(canvas);
+    (container.querySelector('.card-body') || container).appendChild(wrap);
+  } else if (canvas.parentElement && !canvas.parentElement.style.height) {
+    canvas.parentElement.style.cssText = 'position:relative;height:180px;width:100%';
+  }
+  
+  if (typeof Chart === 'undefined') return;
+  
+  if (window._stockDonutChart) {
+    window._stockDonutChart.destroy();
+  }
+  
+  window._stockDonutChart = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: ['In Stock', 'Low Stock', 'Out of Stock'],
+      datasets: [{
+        data: [inStk, lowStk, outStk],
+        backgroundColor: ['#16a34a', '#d97706', '#dc2626'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      animation: { duration: 400 },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+function renderTrendChart() {
+  const cards = document.querySelectorAll('#page-dashboard .card');
+  let container = null;
+  cards.forEach(c => {
+    if (c.textContent.includes('Tren Penjualan') && !container) container = c;
+  });
+  if (!container) return;
+  
+  let canvas = container.querySelector('canvas');
+  if (!canvas) {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;height:240px;width:100%;margin-top:10px';
+    canvas = document.createElement('canvas');
+    canvas.id = 'trendChart';
+    wrap.appendChild(canvas);
+    (container.querySelector('.card-body') || container).appendChild(wrap);
+  } else if (canvas.parentElement && !canvas.parentElement.style.height) {
+    canvas.parentElement.style.cssText = 'position:relative;height:240px;width:100%';
+  }
+  
+  if (typeof Chart === 'undefined') return;
+  
+  if (window._trendChart) {
+    window._trendChart.destroy();
+  }
+  
+  window._trendChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: ['Sen','Sel','Rab','Kam','Jum','Sab','Min'],
+      datasets: [
+        { label: 'Penjualan', data: [5.2e6,6.1e6,4.8e6,7.2e6,8.5e6,9.1e6,6.8e6], borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.1)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 3 },
+        { label: 'Modal', data: [3.5e6,4.2e6,3.2e6,4.9e6,5.8e6,6.2e6,4.6e6], borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 400 },
+      plugins: { legend: { display: false } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { font: { size: 10 }, callback: v => 'Rp ' + (v/1e6).toFixed(1) + 'Jt' }
+        },
+        x: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function renderExpiredList() {
+  const cards = document.querySelectorAll('#page-dashboard .card');
+  let container = null;
+  cards.forEach(c => {
+    if (c.textContent.includes('Akan Expired') && !c.textContent.includes('≤30') && !container) container = c;
+  });
+  if (!container) return;
+  
+  const body = container.querySelector('.card-body') || container;
+  const today = new Date();
+  const in30 = new Date();
+  in30.setDate(today.getDate() + 30);
+  
+  const expiring = PRODUCTS
+    .filter(p => p.exp && new Date(p.exp) >= today && new Date(p.exp) <= in30)
+    .sort((a, b) => new Date(a.exp) - new Date(b.exp))
+    .slice(0, 5);
+  
+  let list = body.querySelector('.expired-list');
+  if (!list) {
+    list = document.createElement('div');
+    list.className = 'expired-list';
+    list.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:14px';
+    body.appendChild(list);
+  }
+  
+  if (expiring.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:13px">✅ Tidak ada produk akan expired dalam 30 hari</div>';
+    return;
+  }
+  
+  list.innerHTML = expiring.map(p => {
+    const exp = new Date(p.exp);
+    const days = Math.ceil((exp - today) / 86400000);
+    const color = days <= 7 ? '#dc2626' : days <= 14 ? '#d97706' : '#16a34a';
+    const bg = days <= 7 ? '#fee2e2' : days <= 14 ? '#fef3c7' : '#dcfce7';
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#f8fafc;border-radius:8px;border-left:3px solid ${color}">
+      <div style="min-width:0;flex:1">
+        <div style="font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</div>
+        <div style="font-size:10px;color:#64748b;margin-top:2px">Stok: ${p.stock} · ${exp.toLocaleDateString('id-ID',{day:'2-digit',month:'short'})}</div>
+      </div>
+      <span style="padding:3px 8px;border-radius:20px;background:${bg};color:${color};font-size:10px;font-weight:700;white-space:nowrap;margin-left:8px">${days} hari</span>
+    </div>`;
+  }).join('');
+}
+
+// Auto render saat load
+(function() {
+  function tryRender() {
+    const dash = document.getElementById('page-dashboard');
+    if (dash && dash.classList.contains('active') && typeof renderDashboardStats === 'function') {
+      renderDashboardStats();
+    }
+  }
+  setTimeout(tryRender, 200);
+  setTimeout(tryRender, 800);
+  document.addEventListener('DOMContentLoaded', tryRender);
+  window.addEventListener('load', tryRender);
+})();
+
+console.log('✅ Dashboard clean v3 loaded');
